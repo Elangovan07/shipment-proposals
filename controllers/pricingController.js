@@ -1,21 +1,20 @@
 const db = require('../config/db');
 
+// Get unique pricing pairs
 exports.getPricingData = async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT 
-                s.id,
-                c.name AS company_name,
                 s.port_loading,
                 s.port_discharge,
-                s.price,          -- freight price
-                s.currency,       -- freight currency
-                s.container_size,
-                s.house_do_fees,
-                s.validity_date
+                MIN(s.price) AS price,                 -- Pick any representative price (edit as a group)
+                MIN(s.currency) AS currency,
+                MIN(s.container_size) AS container_size,
+                MIN(s.house_do_fees) AS house_do_fees,
+                MIN(s.validity_date) AS validity_date
             FROM shipments s
-            LEFT JOIN companies c ON s.company_id = c.id
-            ORDER BY company_name
+            GROUP BY s.port_loading, s.port_discharge
+            ORDER BY s.port_loading, s.port_discharge
         `);
         res.json(rows);
     } catch (err) {
@@ -24,7 +23,7 @@ exports.getPricingData = async (req, res) => {
     }
 };
 
-
+// Update pricing for ALL shipments with these POL/POD
 exports.updateAllPricing = async (req, res) => {
     const { updates } = req.body;
     if (!Array.isArray(updates)) {
@@ -35,8 +34,8 @@ exports.updateAllPricing = async (req, res) => {
             await db.query(`
                 UPDATE shipments 
                 SET price=?, currency=?, container_size=?, house_do_fees=?, validity_date=?
-                WHERE id=?
-            `, [u.price, u.currency, u.container_size, u.house_do_fees, u.validity_date, u.id]);
+                WHERE port_loading=? AND port_discharge=?
+            `, [u.price, u.currency, u.container_size, u.house_do_fees, u.validity_date, u.port_loading, u.port_discharge]);
         }
         res.json({ success: true });
     } catch (err) {
@@ -44,5 +43,3 @@ exports.updateAllPricing = async (req, res) => {
         res.status(500).json({ success: false, message: "Error updating pricing" });
     }
 };
-
-
