@@ -7,8 +7,8 @@ const otpStore = new Map(); // For production, use a DB table
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.GMAIL_USER,        // must match your env vars!
-    pass: process.env.GMAIL_APP_PASS
+    user: process.env.EMAIL_USER,        // must match your env vars!
+    pass: process.env.EMAIL_PASS
   }
 });
 
