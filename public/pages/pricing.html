@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pricing Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<script>
+fetch("/api/auth/check").then(res => { if (!res.ok) window.location.href = "/pages/login.html"; });
+</script>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>💰 Pricing Management</h3>
+        <a href="/pages/dashboard.html" class="btn btn-secondary">⬅ Back to Dashboard</a>
+    </div>
+
+    <table id="pricingTable" class="table table-striped table-bordered table-sm" style="width:100%">
+        <thead class="table-dark">
+            <tr>
+                <th>Company</th>
+                <th>Port Loading</th>
+                <th>Port Discharge</th>
+                <th>Freight Price</th>
+                <th>Freight Currency</th>
+                <th>Container Size</th>
+                <th>House DO Fees</th>
+                <th>Validity Date</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div class="mb-3">
+    <button id="saveAllBtn" class="btn btn-primary">💾 Save All Changes</button>
+</div>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    let table = $('#pricingTable').DataTable({
+        ajax: {
+            url: '/api/pricing',
+            dataSrc: ''
+        },
+        columns: [
+            { data: 'company_name' },
+            { data: 'port_loading' },
+            { data: 'port_discharge' },
+            { 
+                data: 'price',
+                render: function(d) { return `<input type="text" step="0.01" value="${d || ''}" class="form-control price-input">`; }
+            },
+            { 
+                data: 'currency',
+                render: function(d){ return `<input type="text" value="$" class="form-control currency-input">`; }
+            },
+            { 
+                data: 'container_size',
+                render: function(d){ return `<input type="text" value="${d || ''}" class="form-control container-size-input">`; }
+            },
+            { 
+                data: 'house_do_fees',
+                render: function(d){ return `<input type="text" step="0.01" value="2500 / BL" class="form-control house-do-input">`; }
+            },
+            { 
+                data: 'validity_date',
+                render: function(d){ return `<input type="date" value="${d ? d.split('T')[0] : ''}" class="form-control validity-date-input">`; }
+            }
+        ]
+    });
+
+    $('#saveAllBtn').on('click', function() {
+    let updates = [];
+
+    $('#pricingTable tbody tr').each(function() {
+        const rowData = $('#pricingTable').DataTable().row(this).data();
+        updates.push({
+            id: rowData.id,
+            price: $(this).find('.price-input').val(),
+            currency: $(this).find('.currency-input').val(),
+            container_size: $(this).find('.container-size-input').val(),
+            house_do_fees: $(this).find('.house-do-input').val(),
+            validity_date: $(this).find('.validity-date-input').val()
+        });
+    });
+
+    fetch('/api/pricing/update-all', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert("✅ All changes saved successfully.");
+            $('#pricingTable').DataTable().ajax.reload(null, false);
+        } else {
+            alert("❌ Failed to save changes.");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("⚠ Error saving all changes.");
+    });
+});
+
+
+    $('#pricingTable').on('click', '.save-btn', function() {
+        const row = $(this).closest('tr');
+        const id = $(this).data('id');
+        const payload = {
+            id,
+            price: row.find('.price-input').val(),
+            currency: row.find('.currency-input').val(),
+            container_size: row.find('.container-size-input').val(),
+            house_do_fees: row.find('.house-do-input').val(),
+            validity_date: row.find('.validity-date-input').val()
+        };
+
+        fetch('/api/pricing/update', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert("✅ Updated successfully.");
+                table.ajax.reload(null, false);
+            } else {
+                alert("❌ Update failed: " + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("⚠ Error saving data.");
+        });
+    });
+});
+</script>
+
+</body>
+</html>

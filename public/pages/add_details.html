@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Manual Entry - Split Forms</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+
+<script>
+  // Redirect to login if not authenticated
+  fetch("/api/auth/check").then(res => { if (!res.ok) window.location.href = "/pages/login.html"; });
+</script>
+
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>📓 Manual Entry</h3>
+    <a href="/pages/dashboard.html" class="btn btn-secondary">⬅ Back to Dashboard</a>
+  </div>
+
+  <!-- Shipment Form -->
+  <form id="shipmentForm" class="mb-4">
+    <h5>Company & Port Details</h5>
+    <div class="mb-2">
+      <label>Company Name</label>
+      <input type="text" name="company_name" class="form-control" required />
+    </div>
+    <div class="mb-2">
+      <label>Port of Loading</label>
+      <input type="text" name="port_loading" class="form-control" required />
+    </div>
+    <div class="mb-2">
+      <label>Port of Discharge</label>
+      <input type="text" name="port_discharge" class="form-control" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Add Shipment</button>
+  </form>
+
+  <!-- Contact Form -->
+  <form id="contactForm" class="mb-5">
+    <h5>Company Contact Details</h5>
+    <div class="mb-2">
+      <label>Company Name</label>
+      <input type="text" name="company_name" class="form-control" required />
+    </div>
+    <div class="mb-2">
+      <label>Contact Name</label>
+      <input type="text" name="contact_name" class="form-control" required />
+    </div>
+    <div class="mb-2">
+      <label>Contact Email</label>
+      <input type="email" name="contact_email" class="form-control" required />
+    </div>
+    <div class="mb-2">
+      <label>Contact Phone</label>
+      <input type="text" name="contact_phone" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Add Contact</button>
+  </form>
+
+  <!-- Shipments Table -->
+  <h4>Shipments</h4>
+  <table id="shipmentsTable" class="table table-striped table-bordered table-sm mb-5">
+    <thead class="table-dark">
+      <tr>
+        <th>Company</th>
+        <th>Port Loading</th>
+        <th>Port Discharge</th>
+        <th>Price</th>
+        <th>Currency</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Contacts Table -->
+  <h4>Company Contacts</h4>
+  <table id="contactsTable" class="table table-striped table-bordered table-sm">
+    <thead class="table-dark">
+      <tr>
+        <th>Company</th>
+        <th>Contact Name</th>
+        <th>Contact Email</th>
+        <th>Contact Phone</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Load scripts in correct order -->
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+  // Initialize Shipments DataTable
+  const shipmentTable = $('#shipmentsTable').DataTable({
+    ajax: {
+      url: '/api/shipments',
+      dataSrc: ''
+    },
+    columns: [
+      { data: 'company_name' },
+      { data: 'port_loading' },
+      { data: 'port_discharge' },
+      { data: 'price', render: d => d || '<span class="text-danger fw-bold">Missing</span>' },
+      { data: 'currency' }
+    ]
+  });
+
+  // Initialize Contacts DataTable
+  const contactsTable = $('#contactsTable').DataTable({
+    ajax: {
+      url: '/api/contacts',
+      dataSrc: ''
+    },
+    columns: [
+      { data: 'company_name' },
+      { data: 'contact_name' },
+      { data: 'contact_email' },
+      { data: 'contact_phone' }
+    ]
+  });
+
+  // Handle Shipment form submit
+  $('#shipmentForm').on('submit', async function(e) {
+    e.preventDefault();
+    const data = {
+      company_name: this.company_name.value.trim(),
+      port_loading: this.port_loading.value.trim(),
+      port_discharge: this.port_discharge.value.trim()
+    };
+    if (!data.company_name || !data.port_loading || !data.port_discharge) {
+      alert('Please fill all required fields');
+      return;
+    }
+    const res = await fetch('/api/add-shipment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    alert(result.message);
+    if (result.success) {
+      shipmentTable.ajax.reload();
+      this.reset();
+    }
+  });
+
+  // Handle Contact form submit
+  $('#contactForm').on('submit', async function(e) {
+    e.preventDefault();
+    const data = {
+      company_name: this.company_name.value.trim(),
+      contact_name: this.contact_name.value.trim(),
+      contact_email: this.contact_email.value.trim(),
+      contact_phone: this.contact_phone.value.trim()
+    };
+    if (!data.company_name || !data.contact_name || !data.contact_email) {
+      alert('Please fill all required fields');
+      return;
+    }
+    const res = await fetch('/api/add-contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    alert(result.message);
+    if (result.success) {
+      contactsTable.ajax.reload();
+      this.reset();
+    }
+  });
+});
+</script>
+
+</body>
+</html>

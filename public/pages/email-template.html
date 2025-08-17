@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Email Template Management</title>
+  <!-- TinyMCE CDN (Replace API key with yours or self-host) -->
+  <script src="https://cdn.tiny.cloud/1/nx1fq0csta4lbrvc1ej4i5eongujo2qbgrvq00nlh7lqo30n/tinymce/8/tinymce.min.js" referrerpolicy="origin" crossorigin="anonymous"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-4">
+  
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>✉ Email Template</h3>
+    <a href="/pages/dashboard.html" class="btn btn-secondary">⬅ Back to Dashboard</a>
+  </div>
+
+  <div class="alert alert-info">
+  You can use these placeholders in your template:
+  <code>{{company_name}}</code>, 
+  <code>{{contact_name}}</code>,
+  <code>{{shipments_table}}</code>
+</div>
+
+
+  <!-- Template Form -->
+  <form id="templateForm">
+    <input type="text" name="template_name" placeholder="Template Name" class="form-control mb-2" required>
+    <textarea id="template_body" name="template_body"></textarea>
+    <button type="submit" class="btn btn-primary mt-2">💾 Save Template</button>
+  </form>
+
+</div>
+
+<script>
+// Load saved template from backend
+async function loadTemplate() {
+  const res = await fetch('/api/email-template');
+  const data = await res.json();
+  if (data.template_name) {
+    document.querySelector('[name="template_name"]').value = data.template_name;
+    tinymce.get('template_body').setContent(data.template_body || '');
+  }
+}
+
+// Initialize TinyMCE
+tinymce.init({
+  selector: '#template_body',
+  height: 450,
+  plugins: 'table image link code lists advlist',
+  toolbar: 'undo redo | styleselect | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist | link image table | code',
+  menubar: 'file edit view insert format table tools help',
+  setup: function(editor) {
+    editor.on('init', function() {
+      loadTemplate();
+    });
+  }
+});
+
+// Save template
+document.getElementById("templateForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const template_name = this.template_name.value;
+  const template_body = tinymce.get("template_body").getContent();
+  const res = await fetch('/api/email-template', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ template_name, template_body })
+  });
+  const data = await res.json();
+  alert(data.message);
+});
+
+</script>
+</body>
+</html>
