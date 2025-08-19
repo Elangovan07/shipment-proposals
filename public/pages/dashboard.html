@@ -109,10 +109,8 @@ $(document).ready(function() {
         data: null,
         orderable: false,
         render: function(data, type, row) {
-          return `
-            <button class="btn btn-warning btn-sm" onclick="editShipment(${row.id})">Edit</button>
-            <button class="btn btn-danger btn-sm ms-2" onclick="deleteShipment(${row.id})">Delete</button>`;
-        }
+          return `<button class="btn btn-warning btn-sm" onclick="editShipment(${row.id})">Edit</button><button class="btn btn-danger btn-sm ms-2" onclick="deleteShipment(${row.id})">Delete</button>`;
+        }
       }
     ],
     createdRow: function(row, data) {
@@ -137,10 +135,8 @@ $(document).ready(function() {
         data: null,
         orderable: false,
         render: function(data, type, row) {
-          return `
-            <button class="btn btn-warning btn-sm" onclick="editContact(${row.id})">Edit</button>
-            <button class="btn btn-danger btn-sm ms-2" onclick="deleteContact(${row.id})">Delete</button>`;
-        }
+          return `<button class="btn btn-warning btn-sm" onclick="editContact(${row.id})">Edit</button><button class="btn btn-danger btn-sm ms-2" onclick="deleteContact(${row.id})">Delete</button>`;
+        }
       }
     ]
   });
