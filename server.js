@@ -9,6 +9,12 @@ app.use(cors({
   origin: "http://localhost:5000",  // or the correct front-end domain
   credentials: true,
 }));
+
+// Increase JSON payload size limit to e.g. 10MB (adjust as needed)
+app.use(express.json({ limit: '10mb' }));
+// similarly if you are using urlencoded parser
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
 // app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
