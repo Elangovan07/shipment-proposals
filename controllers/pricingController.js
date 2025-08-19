@@ -1,20 +1,20 @@
 const db = require('../config/db');
 
-// Get unique pricing pairs
+// Get unique pricing pairs (normalized)
 exports.getPricingData = async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT 
-                s.port_loading,
-                s.port_discharge,
-                MIN(s.price) AS price,                 -- Pick any representative price (edit as a group)
+                TRIM(LOWER(s.port_loading)) AS port_loading,
+                TRIM(LOWER(s.port_discharge)) AS port_discharge,
+                MIN(s.price) AS price,
                 MIN(s.currency) AS currency,
                 MIN(s.container_size) AS container_size,
                 MIN(s.house_do_fees) AS house_do_fees,
                 MIN(s.validity_date) AS validity_date
             FROM shipments s
-            GROUP BY s.port_loading, s.port_discharge
-            ORDER BY s.port_loading, s.port_discharge
+            GROUP BY TRIM(LOWER(s.port_loading)), TRIM(LOWER(s.port_discharge))
+            ORDER BY TRIM(LOWER(s.port_loading)), TRIM(LOWER(s.port_discharge))
         `);
         res.json(rows);
     } catch (err) {
@@ -23,7 +23,7 @@ exports.getPricingData = async (req, res) => {
     }
 };
 
-// Update pricing for ALL shipments with these POL/POD
+// Update pricing for ALL shipments with these POL/POD (normalized)
 exports.updateAllPricing = async (req, res) => {
     const { updates } = req.body;
     if (!Array.isArray(updates)) {
@@ -34,8 +34,17 @@ exports.updateAllPricing = async (req, res) => {
             await db.query(`
                 UPDATE shipments 
                 SET price=?, currency=?, container_size=?, house_do_fees=?, validity_date=?
-                WHERE port_loading=? AND port_discharge=?
-            `, [u.price, u.currency, u.container_size, u.house_do_fees, u.validity_date, u.port_loading, u.port_discharge]);
+                WHERE TRIM(LOWER(port_loading))=? AND TRIM(LOWER(port_discharge))=?
+            `, [
+                u.price,
+                u.currency,
+                u.container_size,
+                u.house_do_fees,
+                // If blank string, undefined, or null: set as SQL null
+                !u.validity_date || u.validity_date.trim() === "" ? null : u.validity_date,
+                u.port_loading.trim().toLowerCase(),
+                u.port_discharge.trim().toLowerCase()
+            ]);
         }
         res.json({ success: true });
     } catch (err) {
