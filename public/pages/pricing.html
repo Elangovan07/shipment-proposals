@@ -64,7 +64,7 @@ $(document).ready(function() {
             },
             { 
                 data: 'house_do_fees',
-                render: d => `<input type="text" step="0.01" value="2500 / BL" class="form-control house-do-input">`
+                render: d => `<input type="text" step="0.01" value="${d || ''}" class="form-control house-do-input">`
             },
             { 
                 data: 'validity_date',
@@ -74,39 +74,44 @@ $(document).ready(function() {
     });
 
     $('#saveAllBtn').on('click', function() {
-        let updates = [];
-        $('#pricingTable tbody tr').each(function() {
-            const rowData = table.row(this).data();
-            updates.push({
-                port_loading: rowData.port_loading,
-                port_discharge: rowData.port_discharge,
-                price: $(this).find('.price-input').val(),
-                currency: $(this).find('.currency-input').val(),
-                container_size: $(this).find('.container-size-input').val(),
-                house_do_fees: $(this).find('.house-do-input').val(),
-                validity_date: $(this).find('.validity-date-input').val()
-            });
-        });
+    let updates = [];
 
-        fetch('/api/pricing/update-all', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ updates })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                alert("✅ All changes saved successfully.");
-                table.ajax.reload(null, false);
-            } else {
-                alert("❌ Failed to save changes.");
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert("⚠ Error saving all changes.");
+    // Loop through all rows in DataTable (all pages)
+    table.rows().every(function() {
+        const row = this.node();
+        const rowData = this.data();
+
+        updates.push({
+            port_loading: rowData.port_loading,
+            port_discharge: rowData.port_discharge,
+            price: $(row).find('.price-input').val(),
+            currency: $(row).find('.currency-input').val(),
+            container_size: $(row).find('.container-size-input').val(),
+            house_do_fees: $(row).find('.house-do-input').val(),
+            validity_date: $(row).find('.validity-date-input').val()
         });
     });
+
+    fetch('/api/pricing/update-all', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert("✅ All changes saved successfully.");
+            table.ajax.reload(null, false);
+        } else {
+            alert("❌ Failed to save changes.");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("⚠ Error saving all changes.");
+    });
+});
+
 });
 </script>
 
