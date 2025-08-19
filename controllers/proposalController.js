@@ -94,12 +94,18 @@ exports.previewProposals = async (req, res) => {
       const contactNames = contacts.map(c => c.contact_name).join(', ');
       const contactEmails = contacts.map(c => c.contact_email).join(', ');
 
+      function toTitleCase(str) {
+        return str ? str.toLowerCase().split(' ').map(word =>
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ') : '';
+      }
+
       // Build shipments HTML table
-      const rowsHtml = comp.shipments.map(s => `
+      const rowsHtml = (comp.shipments || []).map(s => `
         <tr>
-          <td>${comp.company_name}</td>
-          <td>${s.port_loading}</td>
-          <td>${s.port_discharge}</td>
+          <td>${toTitleCase(comp.company_name)}</td>
+          <td>${toTitleCase(s.port_loading)}</td>
+          <td>${toTitleCase(s.port_discharge)}</td>
           <td>${s.container_size || '-'}</td>
           <td>${s.currency || ''} ${s.price ?? '-'}</td>
           <td>${s.house_do_fees ?? '-'}</td>
