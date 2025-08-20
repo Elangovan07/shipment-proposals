@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Send Proposals</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body class="bg-light">
 
@@ -17,70 +17,113 @@
     These proposals use your latest saved email template with <code>{{shipments_table}}</code> for the shipments list.
   </div>
 
+  <div id="email-progress" class="alert alert-info" style="font-weight: bold; margin-bottom: 1rem;">
+    Emails sent: 0 | Failed: 0
+  </div>
+
   <button id="sendBtn" class="btn btn-success mb-3">🚀 Send All Proposals</button>
 
   <div id="preview-container"></div>
 </div>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
-let previewsData = []; // Stores the previews returned by backend
+  const socket = io();
 
-function renderPreviews() {
-  document.getElementById('preview-container').innerHTML = previewsData.map((p, index) => `
-    <div class="card mb-4" data-index="${index}">
-      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <span>${p.company_name} — ${p.contact_name || ''} — ${p.contact_email || ''}</span>
-        <button type="button" class="btn btn-sm btn-danger remove-btn">Remove</button>
+  socket.on('connect', () => {
+    console.log('Connected to Socket.IO for live updates');
+  });
+
+  socket.on('emailProgress', (data) => {
+    document.getElementById('email-progress').textContent =
+      `Emails sent: ${data.sent} | Failed: ${data.failed}`;
+  });
+
+  socket.on('emailComplete', (data) => {
+    alert(`Email sending complete! Sent: ${data.sent}, Failed: ${data.failed}`);
+    sendBtn.disabled = false;
+    loadPreviews();
+  });
+
+  let previewsData = []; // Declare before listeners
+
+  function renderPreviews() {
+    document.getElementById('preview-container').innerHTML = previewsData.map((p, index) => `
+      <div class="card mb-4" data-index="${index}">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <span>${p.company_name} — ${p.contact_name || ''} — ${p.contact_email || ''}</span>
+          <button type="button" class="btn btn-sm btn-danger remove-btn">Remove</button>
+        </div>
+        <div class="card-body">${p.preview_html}</div>
       </div>
-      <div class="card-body">${p.preview_html}</div>
-    </div>
-  `).join('');
-}
+    `).join('');
+  }
 
-function loadPreviews() {
-  fetch('/api/proposals/preview')
+  function loadPreviews() {
+    fetch('/api/proposals/preview')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          document.getElementById('preview-container').innerHTML =
+            `<div class="alert alert-danger">${data.message}</div>`;
+          previewsData = [];
+          renderPreviews();
+          return;
+        }
+        previewsData = data.previews;
+        renderPreviews();
+        document.getElementById('email-progress').textContent = 'Emails sent: 0 | Failed: 0';
+        sendBtn.disabled = false;
+      });
+  }
+
+  // Handle remove click on preview cards
+  document.getElementById('preview-container').addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-btn')) {
+      const card = e.target.closest('.card');
+      const index = parseInt(card.getAttribute('data-index'), 10);
+      previewsData.splice(index, 1); // Remove selected preview
+      renderPreviews();
+    }
+  });
+
+  const sendBtn = document.getElementById('sendBtn');
+
+  sendBtn.addEventListener('click', () => {
+    if (sendBtn.disabled) return;  // Prevent double clicks
+
+    if (previewsData.length === 0) {
+      alert('No companies selected to send!');
+      return;
+    }
+
+    if (!confirm('Send proposals to selected companies?')) return;
+
+    sendBtn.disabled = true;
+    // Reset progress display
+    document.getElementById('email-progress').textContent = 'Starting email sending...';
+
+    fetch('/api/proposals/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selected_companies: previewsData })
+    })
     .then(res => res.json())
     .then(data => {
       if (!data.success) {
-        document.getElementById('preview-container').innerHTML =
-          `<div class="alert alert-danger">${data.message}</div>`;
-        return;
+        alert('Failed to start email sending: ' + data.message);
+        sendBtn.disabled = false;
       }
-      previewsData = data.previews;  // Save data in array
-      renderPreviews();
+      // Live updates come via socket.io — no further action here
+    })
+    .catch(err => {
+      alert('Error starting email sending: ' + err.message);
+      sendBtn.disabled = false;
     });
-}
+  });
 
-// Handle remove click
-document.getElementById('preview-container').addEventListener('click', function(e) {
-  if (e.target.classList.contains('remove-btn')) {
-    const card = e.target.closest('.card');
-    const index = parseInt(card.getAttribute('data-index'), 10);
-    previewsData.splice(index, 1);  // Remove from array
-    renderPreviews(); // Re-render previews
-  }
-});
-
-// Send proposals (only remaining)
-document.getElementById('sendBtn').addEventListener('click', () => {
-  if (previewsData.length === 0) {
-    alert('No companies selected to send!');
-    return;
-  }
-  if (!confirm('Send proposals to selected companies?')) return;
-
-  fetch('/api/proposals/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    // Send only remaining companies to backend
-    body: JSON.stringify({ selected_companies: previewsData })
-  })
-    .then(res => res.json())
-    .then(data => alert(data.message))
-    .then(loadPreviews);
-});
-
-loadPreviews();
+  // Initial load of previews on page load
+  loadPreviews();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
