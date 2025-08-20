@@ -4,7 +4,13 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const socketIo = require('socket.io');
+
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, { cors: { origin: "http://localhost:5000", credentials: true } });
+
 app.use(cors({
   origin: "http://localhost:5000",  // or the correct front-end domain
   credentials: true,
@@ -39,6 +45,13 @@ app.use('/api/shipments', require('./routes/shipmentRoutes')); // /api/shipments
 // DetailsRoute: mount other forms if needed
 const detailsRouter = require('./routes/detailsRoutes');
 app.use('/api', detailsRouter);
+
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
 
 // Start server
 app.listen(process.env.PORT, () => {
