@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const isAuthenticated = require('../middlewares/authMiddleware');
-const { getLogs } = require('../controllers/logController');
+const logController = require('../controllers/logController');
 
-router.get('/', isAuthenticated, getLogs);
+router.get('/', logController.getLogs);
+router.post('/resend-failed', logController.resendFailedEmails);
 
 module.exports = router;
