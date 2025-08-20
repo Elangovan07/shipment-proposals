@@ -13,7 +13,6 @@ exports.uploadExcel = async (req, res) => {
     }
 
     const workbook = xlsx.readFile(req.file.path);
-
     // First sheet: shipments
     const shipmentsSheetName = workbook.SheetNames[0];
     const shipmentsSheet = workbook.Sheets[shipmentsSheetName];
