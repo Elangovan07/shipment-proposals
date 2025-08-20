@@ -2,6 +2,10 @@ const xlsx = require('xlsx');
 const fs = require('fs');
 const db = require('../config/db');
 
+function normalizeString(str) {
+  return (str || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 exports.uploadExcel = async (req, res) => {
   try {
     if (!req.file) {
@@ -26,8 +30,8 @@ exports.uploadExcel = async (req, res) => {
     // Unique company names from both sheets
     const companyNames = [
       ...new Set([
-        ...shipmentsData.map(s => s['Company Name']?.trim().toLowerCase()),
-        ...contactsData.map(c => c['Company Name']?.trim().toLowerCase())
+        ...shipmentsData.map(s => normalizeString(s['Company Name'])),
+        ...contactsData.map(c => normalizeString(c['Company Name']))
       ])
     ].filter(Boolean);
 
@@ -40,7 +44,7 @@ exports.uploadExcel = async (req, res) => {
       );
       let id;
       if (existing.length > 0) {
-        id = existing[0].id;
+        id = existing.id;
       } else {
         let [result] = await db.query(
           "INSERT INTO companies (name) VALUES (?)",
@@ -53,18 +57,14 @@ exports.uploadExcel = async (req, res) => {
 
     // Deduplicate and insert contacts
     for (const contact of contactsData) {
-      const companyName = contact['Company Name']?.trim().toLowerCase();
+      const companyName = normalizeString(contact['Company Name']);
       const companyId = companyIdMap[companyName];
       if (!companyId) continue;
 
-      const contactEmail = contact['Contact Email']?.trim().toLowerCase();
+      const contactEmail = normalizeString(contact['Contact Email']);
       if (!contactEmail) continue; // skip if no email
 
-      const [existingContact] = await db.query(
-        "SELECT id FROM company_contacts WHERE company_id = ? AND LOWER(TRIM(contact_email)) = ?",
-        [companyId, contactEmail]
-      );
-      if (existingContact.length === 0) {
+      try {
         await db.query(
           "INSERT INTO company_contacts (company_id, contact_name, contact_email, contact_phone) VALUES (?, ?, ?, ?)",
           [
@@ -74,24 +74,24 @@ exports.uploadExcel = async (req, res) => {
             contact['Contact Phone'] || ''
           ]
         );
+      } catch (error) {
+        // Skip duplicates due to UNIQUE constraint
+        if (error.code === 'ER_DUP_ENTRY') continue;
+        throw error;
       }
     }
 
     // Deduplicate and insert shipments
-    // Deduplicate and insert shipments
     for (const s of shipmentsData) {
-      const companyName = s['Company Name']?.trim().toLowerCase();
+      const companyName = normalizeString(s['Company Name']);
       const companyId = companyIdMap[companyName];
       if (!companyId) continue;
-    
-      // Check if shipment already exists by company_id + port_loading + port_discharge
-      const [existingShipment] = await db.query(
-        `SELECT id FROM shipments 
-         WHERE company_id = ? AND port_loading = ? AND port_discharge = ?`,
-        [companyId, s['Port of Loading'], s['Port of Discharge']]
-      );
-    
-        if (existingShipment.length === 0) {
+
+      // Strong normalization for port names
+      const portLoading = normalizeString(s['Port of Loading']);
+      const portDischarge = normalizeString(s['Port of Discharge']);
+
+      try {
         await db.query(
           `INSERT INTO shipments
            (raw_customer_name, raw_company_name, company_id, port_loading, port_discharge, price, currency)
@@ -100,14 +100,19 @@ exports.uploadExcel = async (req, res) => {
             s['Customer Name'] || '',
             s['Company Name'],
             companyId,
-            s['Port of Loading'] || '',
-            s['Port of Discharge'] || '',
+            portLoading,
+            portDischarge,
             s['Price'] || null,
             s['Currency'] || null
           ]
         );
+      } catch (error) {
+        // Skip duplicates due to UNIQUE constraint
+        if (error.code === 'ER_DUP_ENTRY') continue;
+        throw error;
       }
     }
+
     // Cleanup uploaded file
     fs.unlinkSync(req.file.path);
 
